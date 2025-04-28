@@ -1,0 +1,11 @@
+import Page1Hero from './pages/Page1-Hero';
+
+function App() {
+  return (
+    <div className="container">
+      <Page1Hero />
+    </div>
+  );
+}
+
+export default App;
