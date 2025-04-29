@@ -14,19 +14,10 @@ export default function ScanResults() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const result = sessionStorage.getItem('scanResult');
-    if (result) {
-      try {
-        setScanResult(JSON.parse(result));
-        // Clear the result from session storage
-        sessionStorage.removeItem('scanResult');
-      } catch (err) {
-        setError("Failed to load scan results");
-        console.error(err);
-      }
-    } else {
-      setError("No scan results found");
-    }
+    const stored = sessionStorage.getItem('scanResults');
+    const parsed = stored ? JSON.parse(stored) : null;
+    const results = parsed && parsed.result ? parsed.result : parsed;
+    setScanResult(results);
   }, []);
 
   if (error) {
@@ -49,13 +40,13 @@ export default function ScanResults() {
     );
   }
 
-  if (!scanResult) {
+  if (!scanResult || !Array.isArray(scanResult.issues)) {
     return (
       <AuroraBackground>
         <div className="container mx-auto px-4 py-8 max-w-7xl">
           <div className="flex justify-center mb-8">
             <div className="max-w-2xl w-full">
-              <p className="text-white text-center">Loading results...</p>
+              <p className="text-white text-center">No scan results found</p>
             </div>
           </div>
         </div>
@@ -63,17 +54,25 @@ export default function ScanResults() {
     );
   }
 
+  // Only destructure and use scanResult properties after confirming scanResult and scanResult.issues exist
   const {
     url,
     jurisdiction,
     summary,
     screenshot,
     requiredActions,
-    sections,
     issuesCount,
     complianceScore,
     stateSpecificInfo
   } = scanResult;
+
+  // Convert issues to ComplianceItem format
+  const complianceItems = scanResult.issues.map((issue, index) => ({
+    id: issue.id || `${issue.description}-${index}`,
+    title: issue.description,
+    status: issue.status || "warning",
+    info: issue.help
+  }));
 
   return (
     <AuroraBackground>
@@ -89,7 +88,7 @@ export default function ScanResults() {
 
         <div className="container mx-auto px-2 sm:px-4 md:px-8 max-w-7xl">
           {/* Website URL at the top */}
-          <div className="flex justify-center mt-8 mb-3">
+          <div className="flex justify-center mt-8 mb-6">
             <div className="bg-white/10 backdrop-blur-sm px-5 py-2 rounded-full flex items-center">
               <div className="bg-white w-8 h-8 rounded-full flex items-center justify-center mr-2 text-blue-900 font-bold">
                 A
@@ -101,14 +100,14 @@ export default function ScanResults() {
           </div>
 
           {/* Compliance Score */}
-          <div className="flex justify-start mb-2">
+          <div className="flex justify-start mb-6">
             <h1 className="text-2xl sm:text-3xl font-bold text-red-500 ml-5">
               {complianceScore}% <span className="text-lg sm:text-xl">Compliance Score</span>
             </h1>
           </div>
 
           {/* Main Results Container */}
-          <div className="bg-white rounded-xl shadow-lg p-3 sm:p-5 mb-4 flex flex-col md:flex-row gap-4 sm:gap-6 items-stretch">
+          <div className="bg-white rounded-xl shadow-lg p-3 sm:p-5 mb-6 flex flex-col md:flex-row gap-4 sm:gap-6 items-stretch">
             {/* Screenshot */}
             <div className="w-full md:w-5/12 flex flex-col justify-center">
               <div className="border rounded-lg overflow-hidden">
@@ -121,7 +120,7 @@ export default function ScanResults() {
                   <span className="text-xs text-gray-600 truncate">{url}</span>
                 </div>
                 <img
-                  src={screenshot}
+                  src={`data:image/png;base64,${scanResult.screenshot}`}
                   alt="Website screenshot"
                   className="w-full max-h-[140px] sm:max-h-[180px] md:max-h-[200px] object-cover"
                 />
@@ -160,12 +159,12 @@ export default function ScanResults() {
                 </div>
 
                 {/* State-specific info */}
-                {stateSpecificInfo && (
+                {stateSpecificInfo && stateSpecificInfo.regulations && Array.isArray(stateSpecificInfo.regulations) && (
                   <div className="text-gray-600 text-sm mb-4">
                     <p className="font-semibold">State Regulations:</p>
                     <ul className="list-disc list-inside">
                       {stateSpecificInfo.regulations.map((regulation, index) => (
-                        <li key={index}>{regulation}</li>
+                        <li key={`regulation-${index}`}>{regulation}</li>
                       ))}
                     </ul>
                   </div>
@@ -175,37 +174,40 @@ export default function ScanResults() {
           </div>
 
           {/* Required Actions */}
-          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Required Actions</h2>
-            <div className="space-y-4">
-              {requiredActions.map((action) => (
-                <RequiredActionItem
-                  key={action.id}
-                  title={action.title}
-                  description={action.description}
-                  priority={action.priority}
-                />
-              ))}
+          {requiredActions && Array.isArray(requiredActions) && (
+            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Required Actions</h2>
+              <div className="space-y-4">
+                {requiredActions.map((action, index) => (
+                  <RequiredActionItem
+                    key={action.id || `action-${index}`}
+                    title={action.title}
+                    description={action.description}
+                    priority={action.priority}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Compliance Sections */}
-          <div className="space-y-4">
-            {sections.map((section) => (
-              <ComplianceSection
-                key={section.id}
-                title={section.title}
-                description={section.description}
-                issues={section.issues}
-              />
-            ))}
+          {/* Issues List */}
+          <div className="space-y-4 mb-6">
+            <ComplianceSection
+              title="Compliance Issues"
+              score={complianceScore}
+              items={complianceItems}
+            />
           </div>
 
           {/* Get Free Instructions Section */}
-          <GetFreeInstructionsSection />
+          <div className="mb-6">
+            <GetFreeInstructionsSection />
+          </div>
 
           {/* Get Report Section */}
-          <GetReportSection />
+          <div className="mb-6">
+            <GetReportSection />
+          </div>
         </div>
       </div>
     </AuroraBackground>

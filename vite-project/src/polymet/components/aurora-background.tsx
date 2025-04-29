@@ -46,8 +46,8 @@ export default function AuroraBackground({
         backgroundColor: "#020024",
       }}
     >
-      {/* global keyframes */}
-      <style jsx global>{`
+      {/* Add global styles without jsx and global attributes */}
+      <style>{`
         @keyframes moveRight {
           0% {
             transform: translateX(-100%);

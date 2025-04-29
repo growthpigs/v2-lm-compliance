@@ -4,7 +4,7 @@ import ComplianceItemStatus, {
 } from "@/polymet/components/compliance-item-status";
 
 interface ComplianceItem {
-  id: string;
+  id?: string;
   title: string;
   status: "present" | "missing" | "specified" | "warning";
   info?: string;
@@ -36,7 +36,7 @@ export default function ComplianceSection({
       <div className="p-4">
         {items.map((item, index) => (
           <div
-            key={item.id}
+            key={item.id || `${item.title}-${index}`}
             className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
           >
             <div className="flex items-center">

@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import AuroraBackground from "@/polymet/components/aurora-background";
 import ScanLoading from "@/polymet/components/scan-loading";
-import { mockScanService } from "@/polymet/services/mockScanService";
+import { scanService } from "@/polymet/services/scanService";
 
 export default function ScanLoadingPage() {
   const [progress, setProgress] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
-  const [scanId, setScanId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Extract URL from query params
   const urlParams = new URLSearchParams(location.search);
@@ -24,8 +24,10 @@ export default function ScanLoadingPage() {
     const startScan = async () => {
       try {
         // Start the scan with the real URL
-        const result = await mockScanService.scanWebsite(url);
-        setScanId(result.scanId);
+        const result = await scanService.scanWebsite(url);
+        sessionStorage.setItem('scanResults', JSON.stringify(result));
+        console.log('Saved scanResults:', result);
+        navigate('/scan-results');
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to start scan. Please try again.");
         console.error(err);
@@ -34,31 +36,6 @@ export default function ScanLoadingPage() {
 
     startScan();
   }, [url]);
-
-  useEffect(() => {
-    if (!scanId) return;
-
-    const checkStatus = async () => {
-      try {
-        const status = await mockScanService.getScanStatus(scanId);
-        setProgress(status.progress);
-
-        if (status.status === 'completed' && status.result) {
-          // Store the complete result in session storage
-          sessionStorage.setItem('scanResult', JSON.stringify(status.result));
-          setIsComplete(true);
-        } else if (status.status === 'failed') {
-          setError("Scan failed. Please try again.");
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to check scan status. Please try again.");
-        console.error(err);
-      }
-    };
-
-    const interval = setInterval(checkStatus, 2000);
-    return () => clearInterval(interval);
-  }, [scanId]);
 
   if (error) {
     return (
